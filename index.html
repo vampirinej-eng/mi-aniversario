@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pantalla de Bloqueo Aniversario</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        body {
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .video-background {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .video-background video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.55) saturate(1.2);
+        }
+
+        /* MARCO DEL CELULAR */
+        .phone-frame {
+            width: 100%;
+            max-width: 375px; /* Tamaño similar a un iPhone */
+            height: 100vh;
+            max-height: 812px;
+            background: rgba(10, 10, 16, 0.5);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(212, 175, 55, 0.2);
+            border-radius: 40px;
+            border: 2px solid #333;
+            z-index: 1;
+        }
+
+        /* NOTCH (La muesca superior) */
+        .notch {
+            width: 150px;
+            height: 30px;
+            background: #000;
+            border-bottom-left-radius: 18px;
+            border-bottom-right-radius: 18px;
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* PANTALLAS (Lock y Home) */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s ease;
+            background: rgba(0, 0, 0, 0.18);
+            backdrop-filter: blur(2px);
+        }
+
+        /* --- PANTALLA DE BLOQUEO --- */
+        #lockScreen {
+            color: white;
+            padding-top: 40px;
+        }
+        .date-time {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .time {
+            font-size: 4.5rem;
+            font-weight: 300;
+            letter-spacing: -2px;
+        }
+        .date {
+            font-size: 1.2rem;
+            font-weight: 500;
+            opacity: 0.9;
+        }
+
+        .passcode-section {
+            margin-top: 40px;
+            text-align: center;
+            width: 100%;
+        }
+        .pass-title {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #f0f0f0;
+            text-align: center;
+        }
+        
+        /* LOS PUNTOS DE CONTRASEÑA */
+        .dots-container {
+            display: flex;
+            justify-content: center;
+            gap: 18px;
+            margin-bottom: 36px;
+            height: 15px;
+        }
+        .dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.5);
+            transition: all 0.2s ease;
+        }
+        .dot.filled {
+            background-color: #fff;
+            border-color: #fff;
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translateX(-1px); }
+            20%, 80% { transform: translateX(2px); }
+            30%, 50%, 70% { transform: translateX(-4px); }
+            40%, 60% { transform: translateX(4px); }
+        }
+
+        /* TECLADO NUMÉRICO */
+        .keypad {
+            display: grid;
+            grid-template-columns: repeat(3, 76px);
+            gap: 18px 20px;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 18px;
+            width: fit-content;
+        }
+        .key {
+            width: 76px;
+            height: 76px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: white;
+            font-size: 1.9rem;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.1s, transform 0.1s ease;
+            backdrop-filter: blur(5px);
+        }
+        .key:active {
+            background: rgba(255,255,255,0.4);
+        }
+        .key small {
+            font-size: 0.6rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            opacity: 0.7;
+            margin-top: -5px;
+        }
+        .actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 296px;
+            font-size: 0.95rem;
+            margin: 6px auto 0;
+            padding: 0 4px;
+        }
+        .action-btn {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            opacity: 0.8;
+            text-align: center;
+            padding: 0;
+        }
+
+        /* --- PANTALLA DE DESBLOQUEO (Aniversario) --- */
+        #homeScreen {
+            background: radial-gradient(circle at top, rgba(255, 190, 210, 0.4) 0%, rgba(131, 64, 95, 0.25) 25%, rgba(23, 17, 21, 0.93) 62%, rgba(12, 10, 14, 1) 100%);
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(1.06);
+            overflow: hidden;
+        }
+        #homeScreen.unlocked {
+            opacity: 1;
+            pointer-events: all;
+            transform: scale(1);
+            z-index: 5;
+        }
+
+        .home-content {
+            position: relative;
+            z-index: 2;
+            width: min(300px, 84%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 28px 18px 26px;
+            border-radius: 32px;
+            background: rgba(255, 248, 250, 0.08);
+            border: 1px solid rgba(255, 214, 224, 0.22);
+            box-shadow: 0 24px 70px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        .aniv-badge {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at 35% 35%, #fff5d6 0%, #ffd9df 25%, #ff9bb1 60%, #d65f82 100%);
+            box-shadow: 0 0 35px rgba(255, 146, 175, 0.7), inset 0 0 18px rgba(255,255,255,0.4);
+            margin-bottom: 14px;
+            position: relative;
+        }
+
+        .aniv-badge::before,
+        .aniv-badge::after {
+            content: '♥';
+            position: absolute;
+            font-size: 1.25rem;
+            color: rgba(255,255,255,0.75);
+            animation: floatHeart 3.2s ease-in-out infinite;
+        }
+        .aniv-badge::before { left: 12px; top: 14px; }
+        .aniv-badge::after { right: 12px; bottom: 14px; animation-delay: 1.1s; }
+
+        @keyframes floatHeart {
+            0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+            50% { transform: translateY(-10px) scale(1.18); opacity: 1; }
+        }
+
+        .aniv-logo {
+            font-size: 3.3rem;
+            font-weight: 800;
+            color: #fffafc;
+            line-height: 1;
+            text-shadow: 0 10px 18px rgba(202, 78, 118, 0.45);
+        }
+        .aniv-text {
+            color: #fff0f5;
+            font-size: 1.35rem;
+            margin-top: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        .aniv-sub {
+            color: #ffd9e4;
+            font-size: 0.72rem;
+            margin-top: 10px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+
+        .aniv-message {
+            color: rgba(255,255,255,0.92);
+            font-size: 0.88rem;
+            line-height: 1.7;
+            margin-top: 18px;
+            padding: 0 10px;
+        }
+
+        .aniv-btn {
+            margin-top: 24px;
+            background: linear-gradient(135deg, #fff5f8 0%, #ffd7e7 25%, #ffafd0 52%, #d84778 100%);
+            color: #4b1830;
+            padding: 13px 34px;
+            border-radius: 999px;
+            text-decoration: none;
+            font-weight: 800;
+            border: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 14px 30px rgba(255, 117, 165, 0.42);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
+        .aniv-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 18px 36px rgba(255, 117, 165, 0.58);
+        }
+
+        .confetti-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 1;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            top: -10%;
+            width: 10px;
+            height: 18px;
+            opacity: 0.9;
+            border-radius: 3px;
+            animation: confettiFall 2.8s ease-in forwards;
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate3d(var(--tx), 95vh, 0) rotate(var(--rot)) scale(0.9);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <audio id="bgMusic" autoplay loop preload="auto">
+        <source src="musica.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="video-background">
+        <video autoplay muted loop playsinline preload="auto">
+            <source src="video.mp4" type="video/mp4">
+        </video>
+    </div>
+
+    <div class="phone-frame">
+        <div class="notch"></div>
+
+        <!-- PANTALLA DE BLOQUEO -->
+        <div class="screen" id="lockScreen">
+            <div class="date-time">
+                <div class="time">9:41</div>
+                <div class="date">Lunes, 15 de Noviembre</div>
+            </div>
+
+            <div class="passcode-section">
+                <div class="pass-title">la clave es ese dia que iniciamos</div>
+                <div class="dots-container" id="dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+
+            <div class="keypad">
+                <button class="key" onclick="addNumber(1)">1</button>
+                <button class="key" onclick="addNumber(2)">2<small>ABC</small></button>
+                <button class="key" onclick="addNumber(3)">3<small>DEF</small></button>
+                <button class="key" onclick="addNumber(4)">4<small>GHI</small></button>
+                <button class="key" onclick="addNumber(5)">5<small>JKL</small></button>
+                <button class="key" onclick="addNumber(6)">6<small>MNO</small></button>
+                <button class="key" onclick="addNumber(7)">7<small>PQRS</small></button>
+                <button class="key" onclick="addNumber(8)">8<small>TUV</small></button>
+                <button class="key" onclick="addNumber(9)">9<small>WXYZ</small></button>
+                <div></div> <!-- Espacio vacío -->
+                <button class="key" onclick="addNumber(0)">0</button>
+                <div></div> <!-- Espacio vacío -->
+            </div>
+            
+            <div class="actions">
+                <button class="action-btn" onclick="alert('Pista: 15/07/26')">¿Olvidaste la clave?</button>
+                <button class="action-btn" onclick="clearPass()">Cancelar</button>
+            </div>
+        </div>
+
+        <!-- PANTALLA DE INICIO (Aniversario) -->
+        <div class="screen" id="homeScreen">
+            <div class="confetti-layer" id="confettiLayer"></div>
+            <div class="home-content">
+                <div class="aniv-badge">
+                    <div class="aniv-logo">2</div>
+                </div>
+                <div class="aniv-text">meses</div>
+                <div class="aniv-sub">te amo / quiero que vivamos tiempo juntos</div>
+                <p class="aniv-message">Cuando el tiempo mide los años pasados y el reloj marca el ciclo de mi vida, tú, mi sol, en los cielos has llegado haciendo que el amor sea tan sencilla. No hay estación que pueda compararse al brillo de tus ojos, mi querencia; ni el verano más cálido se atreve a competir con tu dulce presencia. Tu risa es el eco que me inspira, tu voz, el canto que el alma me da; juntos en este amor nos consagramos, más fuertes que el viento, más firmes que la roca. Que el tiempo pase, que los años cambien, mi amor por ti, eterno, no se apaga.</p>
+                <button class="aniv-btn" id="celebrateBtn">¡Celebrar!</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const music = document.getElementById('bgMusic');
+        const timeElement = document.querySelector('.time');
+        const dateElement = document.querySelector('.date');
+
+        if (music) {
+            music.volume = 0.55;
+            music.play().catch(() => {});
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+            const dayName = days[now.getDay()];
+            const dayNumber = now.getDate();
+            const monthName = months[now.getMonth()];
+
+            timeElement.textContent = `${hours}:${minutes}`;
+            dateElement.textContent = `${dayName}, ${dayNumber} de ${monthName}`;
+        }
+
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        const celebrateBtn = document.getElementById('celebrateBtn');
+        const confettiLayer = document.getElementById('confettiLayer');
+
+        function launchConfetti() {
+            if (!confettiLayer) return;
+            confettiLayer.innerHTML = '';
+
+            const colors = ['#ffd166', '#ff6b6b', '#74c69d', '#4cc9f0', '#f72585', '#f9c74f'];
+
+            for (let i = 0; i < 140; i++) {
+                const piece = document.createElement('span');
+                piece.className = 'confetti-piece';
+                piece.style.left = `${Math.random() * 100}%`;
+                piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.setProperty('--tx', `${(Math.random() - 0.5) * 220}px`);
+                piece.style.setProperty('--rot', `${Math.random() * 720 - 360}deg`);
+                piece.style.animationDelay = `${Math.random() * 0.2}s`;
+                confettiLayer.appendChild(piece);
+            }
+        }
+
+        if (celebrateBtn) {
+            celebrateBtn.addEventListener('click', launchConfetti);
+        }
+
+        let passcode = "";
+        const correctCode = "150726"; // Fecha del aniversario: 15/07/26
+        const dots = document.querySelectorAll('.dot');
+        const lockScreen = document.getElementById('lockScreen');
+        const homeScreen = document.getElementById('homeScreen');
+
+        function addNumber(num) {
+            if(passcode.length < 6) {
+                passcode += num;
+                updateDots();
+                
+                if(passcode.length === 6) {
+                    setTimeout(checkPasscode, 300);
+                }
+            }
+        }
+
+        function updateDots() {
+            dots.forEach((dot, index) => {
+                if(index < passcode.length) {
+                    dot.classList.add('filled');
+                } else {
+                    dot.classList.remove('filled');
+                }
+            });
+        }
+
+        function checkPasscode() {
+            if(passcode === correctCode) {
+                // Desbloquear
+                homeScreen.classList.add('unlocked');
+                lockScreen.style.opacity = '0';
+                lockScreen.style.transform = 'scale(1.2)';
+                lockScreen.style.pointerEvents = 'none';
+            } else {
+                // Contraseña incorrecta: vibrar y limpiar
+                document.querySelector('.dots-container').classList.add('shake');
+                setTimeout(() => {
+                    clearPass();
+                    document.querySelector('.dots-container').classList.remove('shake');
+                }, 500);
+            }
+        }
+
+        function clearPass() {
+            passcode = "";
+            updateDots();
+        }
+    </script>
+</body>
+</html>
